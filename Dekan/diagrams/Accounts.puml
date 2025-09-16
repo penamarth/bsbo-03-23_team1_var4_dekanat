@@ -1,0 +1,100 @@
+@startuml
+title Просмотр личных данных и статуса студента
+
+actor "Студент" as Student
+actor "Сотрудник деканата" as Employee
+participant "Система деканата" as System
+participant "База данных" as Database
+
+' === Аутентификация (общая часть) ===
+Student -> System: Запрос на просмотр своих данных
+activate System
+System -> Student: Запрос аутентификации
+activate Student
+Student --> System: Ввод учетных данных
+deactivate Student
+System -> Database: verifyCredentials(credentials)
+activate Database
+Database --> System: Подтверждение: Студент ID=123
+deactivate Database
+
+' === СЦЕНАРИЙ СТУДЕНТА ===
+group Просмотр личных данных [Студент]
+System -> Database: getStudentData(studentId=123)
+activate Database
+Database --> System: Данные студента: ФИО, группа, статус
+deactivate Database
+
+System --> Student: Отображение личного профиля
+deactivate System
+end
+
+|||
+
+' === СЦЕНАРИЙ СОТРУДНИКА ДЕКАНАТА ===
+Employee -> System: Запрос данных студента (ввод ID/ФИО)
+activate System
+System -> Employee: Запрос аутентификации
+activate Employee
+Employee --> System: Ввод учетных данных сотрудника
+deactivate Employee
+System -> Database: verifyEmployeeAccess(credentials)
+activate Database
+Database --> System: Подтверждение: Сотрудник деканата
+deactivate Database
+
+group Поиск данных студента [Сотрудник]
+System -> Database: searchStudent(criteria)
+activate Database
+Database --> System: Данные студента: ФИО, группа, статус, контакты
+deactivate Database
+
+System --> Employee: Отображение полного профиля студента
+deactivate System
+end
+
+|||
+
+' === АЛЬТЕРНАТИВНЫЕ ПОТОКИ ===
+
+' Ошибка доступа сотрудника
+group Ошибка доступа [Сотрудник]
+Employee -> System: Запрос данных студента
+activate System
+System -> Employee: Запрос аутентификации
+activate Employee
+Employee --> System: Ввод учетных данных
+deactivate Employee
+System -> Database: verifyEmployeeAccess(credentials)
+activate Database
+Database --> System: Ошибка: Недостаточно прав
+deactivate Database
+System --> Employee: "Доступ запрещен"
+deactivate System
+end
+
+|||
+
+' Студент не найден
+group Студент не найден [Сотрудник]
+Employee -> System: Запрос данных студента (ID)
+activate System
+System -> Employee: Запрос аутентификации
+activate Employee
+Employee --> System: Ввод учетных данных
+deactivate Employee
+System -> Database: verifyEmployeeAccess(credentials)
+activate Database
+Database --> System: Подтверждение: Сотрудник деканата
+deactivate Database
+
+System -> Database: searchStudent(criteria)
+activate Database
+Database --> System: Ошибка: Студент не найден
+deactivate Database
+
+System --> Employee: "Студент не найден"
+deactivate System
+end
+
+@enduml

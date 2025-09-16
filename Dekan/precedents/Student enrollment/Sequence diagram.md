@@ -1,0 +1,1 @@
+﻿![Диаграмма](/Dekan/diagrams/png/student_enrollment_sequence_diagram.png)

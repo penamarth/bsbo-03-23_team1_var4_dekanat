@@ -1,0 +1,165 @@
+﻿@startuml
+title Управление ролями: создание/редактирование/удаление ролей и назначение пользователям
+
+actor "Администратор системы" as Admin
+participant "Система деканата" as System
+participant "База данных" as DB
+participant "Служба авторизации" as Auth
+
+' === Аутентификация администратора (общая) ===
+Admin -> System: Запрос на управление ролями (операция, данные)
+activate System
+System -> Admin: Запрос аутентификации
+activate Admin
+Admin --> System: Ввод учетных данных
+deactivate Admin
+System -> Auth: Проверка прав администратора
+activate Auth
+Auth --> System: OK / Ошибка
+deactivate Auth
+
+alt Недостаточно прав
+  System --> Admin: Доступ запрещен
+  deactivate System
+else Права подтверждены
+  ' === Сценарий 1. Создание роли ===
+  group Создание роли
+    Admin -> System: createRole(name, permissions[])
+    System -> DB: Проверить уникальность роли (name)
+    activate DB
+    DB --> System: Свободно/Занято
+    deactivate DB
+
+    alt Роль уже существует
+      System --> Admin: Ошибка: Роль с таким именем уже существует
+    else ОК
+      System -> DB: Создать роль (name)
+      activate DB
+      DB --> System: Роль создана (roleId=R1)
+      deactivate DB
+
+      loop для каждого permissions[]
+        System -> DB: Привязать разрешение к роли (R1, perm)
+        activate DB
+        DB --> System: Привязано
+        deactivate DB
+      end
+
+      System --> Admin: Успех: Роль создана (R1)
+    end
+  end
+
+  |||
+
+  ' === Сценарий 2. Редактирование роли (переименование/изменение разрешений) ===
+  group Редактирование роли
+    Admin -> System: updateRole(roleId, newName?, addPerms[], removePerms[])
+    System -> DB: Найти роль (roleId)
+    activate DB
+    DB --> System: Найдена/Не найдена
+    deactivate DB
+
+    alt Роль не найдена
+      System --> Admin: Ошибка: Роль не найдена
+    else Найдена
+      opt Переименование
+        System -> DB: Обновить имя роли (newName)
+        activate DB
+        DB --> System: Обновлено
+        deactivate DB
+      end
+
+      opt Добавить разрешения
+        loop для каждого в addPerms[]
+          System -> DB: Добавить разрешение (roleId, perm)
+          activate DB
+          DB --> System: Добавлено
+          deactivate DB
+        end
+      end
+
+      opt Удалить разрешения
+        loop для каждого в removePerms[]
+          System -> DB: Удалить разрешение (roleId, perm)
+          activate DB
+          DB --> System: Удалено
+          deactivate DB
+        end
+      end
+
+      System --> Admin: Успех: Роль обновлена
+    end
+  end
+
+  |||
+
+  ' === Сценарий 3. Удаление роли ===
+  group Удаление роли
+    Admin -> System: deleteRole(roleId)
+    System -> DB: Проверить использование роли (назначена ли пользователям)
+    activate DB
+    DB --> System: Кол-во назначений = N
+    deactivate DB
+
+    alt Роль назначена пользователям (N>0)
+      System --> Admin: Ошибка: Нельзя удалить роль, есть N назначений
+    else Нет назначений
+      System -> DB: Удалить связи роль-права
+      activate DB
+      DB --> System: Удалены
+      deactivate DB
+
+      System -> DB: Удалить роль
+      activate DB
+      DB --> System: Роль удалена
+      deactivate DB
+
+      System --> Admin: Успех: Роль удалена
+    end
+  end
+
+  |||
+
+  ' === Сценарий 4. Назначение/снятие роли пользователю ===
+  group Назначение роли пользователю
+    Admin -> System: assignRole(userId, roleId)
+    System -> DB: Проверить существование user и role
+    activate DB
+    DB --> System: ОК/Ошибка
+    deactivate DB
+
+    alt Ошибка
+      System --> Admin: Ошибка: Пользователь/Роль не найдены
+    else ОК
+      System -> DB: Добавить назначение роли (userId, roleId)
+      activate DB
+      DB --> System: Назначено
+      deactivate DB
+
+      System -> Auth: Аннулировать активные сессии пользователя
+      activate Auth
+      Auth --> System: Сессии аннулированы
+      deactivate Auth
+
+      System --> Admin: Успех: Роль назначена
+    end
+  end
+
+  group Снятие роли у пользователя
+    Admin -> System: revokeRole(userId, roleId)
+    System -> DB: Удалить назначение роли (userId, roleId)
+    activate DB
+    DB --> System: Удалено/Не было
+    deactivate DB
+
+    System -> Auth: Аннулировать активные сессии пользователя
+    activate Auth
+    Auth --> System: Сессии аннулированы
+    deactivate Auth
+
+    System --> Admin: Роль снята (или не была назначена)
+  end
+
+  deactivate System
+end
+@enduml

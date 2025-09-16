@@ -1,0 +1,34 @@
+﻿@startuml
+title Просмотр списка групп и студентов
+
+actor "Преподаватель" as Teacher
+participant "Система" as System
+participant "База данных" as DB
+
+' === Процесс 1: Получение групп ===
+group Получение групп
+  Teacher -> System: viewGroups()
+  activate System
+  System -> DB: getAllGroupsForTeacher(teacherId)
+  activate DB
+  DB --> System: groups
+  deactivate DB
+  System --> Teacher: список групп
+  deactivate System
+end
+
+|||
+
+' === Процесс 2: Получение студентов ===
+group Получение студентов
+  Teacher -> System: viewGroupStudents(groupId)
+  activate System
+  System -> DB: getStudentsByGroup(groupId)
+  activate DB
+  DB --> System: students (актуальный состав)
+  deactivate DB
+  System --> Teacher: список студентов
+  deactivate System
+end
+
+@enduml 
